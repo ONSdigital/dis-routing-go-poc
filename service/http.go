@@ -27,5 +27,5 @@ func (s *Server) Start() {
 
 func (s *Server) Stop() {
 	slog.Info("stopping server", "name", s.Name)
-	s.server.Shutdown(context.Background())
+	s.server.Shutdown(context.Background()) // Should really use a timeout but taking a dirty shortcut for POC
 }

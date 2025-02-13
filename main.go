@@ -10,14 +10,19 @@ import (
 )
 
 func main() {
-	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+	logHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})
+	slog.SetDefault(slog.New(logHandler))
 	slog.Info("Starting POC")
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	svc := service.Service{}
-	svc.Run()
+	err := svc.Run()
+	if err != nil {
+		slog.Error("failed to run service", "error", err)
+		os.Exit(1)
+	}
 
 	select {
 	case sig := <-sigChan:

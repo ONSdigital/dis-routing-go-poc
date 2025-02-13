@@ -1,42 +1,52 @@
 package service
 
 import (
+	"fmt"
+
 	"github.com/ONSdigital/dis-routing-go-poc/routing"
 	"github.com/ONSdigital/dis-routing-go-poc/storage"
 	"github.com/ONSdigital/dis-routing-go-poc/upstream"
 )
 
 type Service struct {
-	upstream Server
-	routing  Server
-	storage  Server
+	upstreamServer Server
+	routingServer  Server
+	storageServer  Server
 }
 
-func (s *Service) Run() {
+func (s *Service) Run() error {
 
-	s.routing = Server{
-		Name:    "routing",
-		Addr:    "localhost:30000",
-		Handler: routing.Handler{},
+	store := storage.NewStore()
+	router, err := routing.NewRouter(store)
+	if err != nil {
+		return fmt.Errorf("creating router failed: %w", err)
 	}
-	s.upstream = Server{
-		Name:    "upstream",
+
+	s.routingServer = Server{
+		Name:    "routingServer",
+		Addr:    "localhost:30000",
+		Handler: router,
+	}
+	s.upstreamServer = Server{
+		Name:    "upstreamServer",
 		Addr:    "localhost:30001",
 		Handler: upstream.Handler(),
 	}
-	s.storage = Server{
-		Name:    "storage-api",
+	s.storageServer = Server{
+		Name:    "storageServer-api",
 		Addr:    "localhost:30002",
-		Handler: storage.AdminHandler(),
+		Handler: store,
 	}
 
-	s.routing.Start()
-	s.upstream.Start()
-	s.storage.Start()
+	s.routingServer.Start()
+	s.upstreamServer.Start()
+	s.storageServer.Start()
+
+	return nil
 }
 
 func (s *Service) Shutdown() {
-	s.routing.Stop()
-	s.upstream.Stop()
-	s.storage.Stop()
+	s.routingServer.Stop()
+	s.upstreamServer.Stop()
+	s.storageServer.Stop()
 }
