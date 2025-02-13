@@ -4,9 +4,26 @@ Proof of Concept for dynamically loadable routing and redirects in Go
 
 ## Getting started
 
+The POC consists of three main parts:
+
+- The router itself (mainly in the `routing` subdirectory, port 30000)
+- A stubbed upstream service to record requests routed by the router (`upstream`, port 30001)
+- A storage mock with its own simple admin API (`storage`, port 30002)
+
+```shell
+go run main.go
+```
+
+You can then call routes on the router using a browser or your http client of choice.
+Eg. http://localhost:30000/some/route
+
 ### Dependencies
 
+None. The POC is built using the Go standard library where possible.
+
 ### Configuration
+
+None. Ports are hardcoded currently as it's only a POC but this may change as the POC develops
 
 ## Contributing
 
