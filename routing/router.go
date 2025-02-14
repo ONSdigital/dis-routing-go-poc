@@ -68,15 +68,15 @@ func (r *Router) newHandler(redirects []Redirect, routes []Route) http.Handler {
 	for _, redirect := range redirects {
 		slog.Debug("adding redirect", "path", redirect.Path, "redirect", redirect.Redirect, "status", redirect.Status)
 		redirectHandler := NewRedirectHandler(redirect.Path, redirect.Status)
-		mux.Handle(redirect.Path, redirectHandler)
+		mux.Handle(redirect.Path, redirectHandler) // TODO recover panic on bad path
 	}
 	for _, route := range routes {
 		slog.Debug("adding route", "path", route.Path, "host", route.Host)
 		proxyHandler, err := NewProxyHandler(route.Host)
 		if err != nil {
-			panic(err)
+			panic(err) // TODO handle error properly
 		}
-		mux.Handle(route.Path, proxyHandler)
+		mux.Handle(route.Path, proxyHandler) // TODO recover panic on bad path
 	}
 	return mux
 }

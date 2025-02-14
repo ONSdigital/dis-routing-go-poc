@@ -1,36 +1,29 @@
 package storage
 
 import (
-	"log/slog"
+	"maps"
 	"net/http"
-	"time"
+	"slices"
 
 	"github.com/ONSdigital/dis-routing-go-poc/routing"
 )
 
 type Store struct {
-	handler    http.Handler
 	reloadFunc func() error
+	routes     map[string]routing.Route
+	redirects  map[string]routing.Redirect
 }
 
 func NewStore() *Store {
 	store := &Store{
-		handler: adminHandler(),
+		redirects: make(map[string]routing.Redirect),
+		routes:    make(map[string]routing.Route),
 	}
-	go func() {
-		done := false
-		for !done {
-			time.Sleep(20 * time.Second)
-			if store.reloadFunc != nil {
-				slog.Debug("triggered reload of router")
-				if err := store.reloadFunc(); err != nil {
-					slog.Error("unable to reload router", "err", err.Error())
-				} else {
-					done = true
-				}
-			}
-		}
-	}()
+
+	// Hardcode some values into the store
+	store.redirects["/ons"] = routing.Redirect{"/ons", "https://www.ons.gov.uk/", http.StatusTemporaryRedirect}
+	store.routes["/moo"] = routing.Route{"/moo", "http://localhost:30001"}
+
 	return store
 }
 
@@ -39,9 +32,7 @@ func (s *Store) RegisterReloadFunc(rf func() error) {
 }
 
 func (s *Store) GetRedirects() []routing.Redirect {
-	return []routing.Redirect{
-		{"/ons", "https://www.ons.gov.uk/", http.StatusTemporaryRedirect},
-	}
+	return slices.Collect(maps.Values(s.redirects))
 }
 
 func (s *Store) GetRoutes() []routing.Route {

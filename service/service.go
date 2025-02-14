@@ -35,7 +35,7 @@ func (s *Service) Run() error {
 	s.storageServer = Server{
 		Name:    "storageServer-api",
 		Addr:    "localhost:30002",
-		Handler: store,
+		Handler: store.AdminHandler(),
 	}
 
 	s.routingServer.Start()
