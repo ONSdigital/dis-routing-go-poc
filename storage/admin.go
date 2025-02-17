@@ -21,7 +21,7 @@ type addRouteModel struct {
 	Host string `json:"host"`
 }
 
-func (s Store) addRoute(w http.ResponseWriter, req *http.Request) {
+func (s *Store) addRoute(w http.ResponseWriter, req *http.Request) {
 	slog.Info("received add route request")
 	body, err := io.ReadAll(req.Body)
 	if err != nil {
@@ -64,7 +64,7 @@ type addRedirectModel struct {
 	Type     string `json:"type"`
 }
 
-func (s Store) addRedirect(w http.ResponseWriter, req *http.Request) {
+func (s *Store) addRedirect(w http.ResponseWriter, req *http.Request) {
 	slog.Info("received add redirect request")
 	body, err := io.ReadAll(req.Body)
 	if err != nil {

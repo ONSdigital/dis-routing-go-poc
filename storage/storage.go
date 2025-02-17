@@ -36,7 +36,5 @@ func (s *Store) GetRedirects() []routing.Redirect {
 }
 
 func (s *Store) GetRoutes() []routing.Route {
-	return []routing.Route{
-		{"/moo", "http://localhost:30001"},
-	}
+	return slices.Collect(maps.Values(s.routes))
 }
