@@ -17,7 +17,11 @@ func main() {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-	svc := service.Service{}
+	svc := service.Service{
+		RouterPort:   30000,
+		UpstreamPort: 30001,
+		AdminPort:    30002,
+	}
 	err := svc.Run()
 	if err != nil {
 		slog.Error("failed to run service", "error", err)

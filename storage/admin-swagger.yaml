@@ -1,0 +1,75 @@
+openapi: 3.1.0
+info:
+  title: Storage Admin API
+  description: Storage Admin API
+  version: 1.0.0
+servers:
+  - url: 'http://localhost:30002/'
+paths:
+  /routes:
+    post:
+      summary: Add a route
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Route"
+            example:
+              {
+                "path": "/route1",
+                "host": "http://localhost:30001"
+              }
+      responses:
+        "201":
+          description: Route added to storage
+
+  /redirects:
+    post:
+      summary: Add a redirect
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Redirect"
+            example:
+              {
+                "path": "/redirect1",
+                "host": "http://redirect.exampe.org/somewhere"
+              }
+      responses:
+        "201":
+          description: Redirect added to storage
+
+
+components:
+  schemas:
+    "Route":
+      type: "object"
+      properties:
+        "path":
+          type: string
+        "host":
+          type: string
+      required:
+        - "path"
+        - "host"
+
+    "Redirect":
+      type: "object"
+      properties:
+        "path":
+          type: string
+        "redirect":
+          type: string
+        "type":
+          type: string
+          oneOf:
+            - "perm"
+            - "temp"
+      required:
+        - "path"
+        - "redirect"
+
+

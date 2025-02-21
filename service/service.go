@@ -9,6 +9,9 @@ import (
 )
 
 type Service struct {
+	RouterPort     int
+	UpstreamPort   int
+	AdminPort      int
 	upstreamServer Server
 	routingServer  Server
 	storageServer  Server
@@ -24,17 +27,17 @@ func (s *Service) Run() error {
 
 	s.routingServer = Server{
 		Name:    "routingServer",
-		Addr:    "localhost:30000",
+		Addr:    fmt.Sprintf("localhost:%d", s.RouterPort),
 		Handler: router,
 	}
 	s.upstreamServer = Server{
 		Name:    "upstreamServer",
-		Addr:    "localhost:30001",
+		Addr:    fmt.Sprintf("localhost:%d", s.UpstreamPort),
 		Handler: upstream.Handler(),
 	}
 	s.storageServer = Server{
 		Name:    "storageServer-api",
-		Addr:    "localhost:30002",
+		Addr:    fmt.Sprintf("localhost:%d", s.AdminPort),
 		Handler: store.AdminHandler(),
 	}
 

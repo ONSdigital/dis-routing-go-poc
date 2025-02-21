@@ -18,8 +18,8 @@ func (s *Server) Start() {
 		Addr:    s.Addr,
 		Handler: s.Handler,
 	}
+	slog.Info("starting server", "name", s.Name, "addr", s.Addr)
 	go func() {
-		slog.Info("starting server", "name", s.Name, "addr", s.Addr)
 		s.server.ListenAndServe()
 		slog.Info("stopped server", "name", s.Name)
 	}()

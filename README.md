@@ -17,6 +17,21 @@ go run main.go
 You can then call routes on the router using a browser or your http client of choice.
 Eg. http://localhost:30000/some/route
 
+### POC specific code
+
+Due to the POC nature,  all code should be considered non-production. However, specific sctions of the code that are 
+very much POC specific are marked with comments.  
+```go
+// POC-ONLY
+…
+// /POC-ONLY
+```
+
+Some examples include…
+
+- Adding in debugging headers to requests
+- Deliberate delays supplied via request headers
+
 ### Dependencies
 
 None. The POC is built using the Go standard library where possible.
