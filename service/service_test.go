@@ -20,10 +20,10 @@ const (
 	numRequestsMultiple = 100
 	delayMultiple       = 100
 
-	numRequestsStaggered = 1000
+	numRequestsStaggered = 100
 	delayStaggered       = 10
 
-	numConfigRedirects = 100
+	numConfigRedirects = 1000
 )
 
 // TestMain runs before any tests and applies globally for all tests in the package.
@@ -297,14 +297,17 @@ func TestService_RunBigConfig(t *testing.T) {
 	t.Run("add lots of redirects", func(t *testing.T) {
 		fmt.Printf("BigConfig num requests = %d\n", numConfigRedirects)
 
+		redirects := make([]redirect, 0)
 		for i := 0; i < numConfigRedirects; i++ {
 			path := fmt.Sprintf("/redir%d", i)
 			dest := fmt.Sprintf("http://localhost/redirected%d", i)
+			redirects = append(redirects, redirect{path: path, dest: dest})
 			redirs[path] = dest
-			err = addRedirect(svc.AdminPort, path, dest)
-			if err != nil {
-				t.Fatal(err)
-			}
+
+		}
+		err = addRedirects(svc.AdminPort, redirects)
+		if err != nil {
+			t.Fatal(err)
 		}
 
 		fmt.Printf("BigConfig added requests = %d\n", numConfigRedirects)
@@ -423,7 +426,21 @@ func (c *httpClient) Send(path string, opts *sendOptions) (*result, error) {
 }
 
 func addRedirect(port int, path, dest string) error {
-	payload := fmt.Sprintf(`[{"path":"%s","redirect":"%s","type":"temp"}]`, path, dest)
+	return addRedirects(port, []redirect{{path: path, dest: dest}})
+}
+
+type redirect struct {
+	path string
+	dest string
+}
+
+func addRedirects(port int, rs []redirect) error {
+	items := []string{}
+	for _, r := range rs {
+		item := fmt.Sprintf(`{"path":"%s","redirect":"%s","type":"temp"}`, r.path, r.dest)
+		items = append(items, item)
+	}
+	payload := "[" + strings.Join(items, ",") + "]"
 	resp, err := http.Post(fmt.Sprintf("http://localhost:%d/redirects", port), `application/json`, strings.NewReader(payload))
 	if err != nil {
 		return err
@@ -435,7 +452,21 @@ func addRedirect(port int, path, dest string) error {
 }
 
 func addRoute(port int, path, host string) error {
-	payload := fmt.Sprintf(`[{"path":"%s","host":"%s"}]`, path, host)
+	return addRoutes(port, []route{{path: path, host: host}})
+}
+
+type route struct {
+	path string
+	host string
+}
+
+func addRoutes(port int, rs []route) error {
+	items := []string{}
+	for _, r := range rs {
+		item := fmt.Sprintf(`{"path":"%s","host":"%s"}`, r.path, r.host)
+		items = append(items, item)
+	}
+	payload := "[" + strings.Join(items, ",") + "]"
 	resp, err := http.Post(fmt.Sprintf("http://localhost:%d/routes", port), `application/json`, strings.NewReader(payload))
 	if err != nil {
 		return err
