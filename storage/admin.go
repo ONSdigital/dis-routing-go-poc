@@ -16,7 +16,7 @@ func (s *Store) AdminHandler() *http.ServeMux {
 	return mux
 }
 
-type addRouteModel struct {
+type addRouteModel []struct {
 	Path string `json:"path"`
 	Host string `json:"host"`
 }
@@ -39,14 +39,15 @@ func (s *Store) addRoute(w http.ResponseWriter, req *http.Request) {
 
 	// TODO VALIDATE INPUTS!!!!
 
-	slog.Info("adding route", "path", payload.Path, "host", payload.Host)
-	route := routing.Route{
-		Path: payload.Path,
-		Host: payload.Host,
+	for _, item := range payload {
+		slog.Info("adding route", "path", item.Path, "host", item.Host)
+		route := routing.Route{
+			Path: item.Path,
+			Host: item.Host,
+		}
+
+		s.routes[item.Path] = route
 	}
-
-	s.routes[payload.Path] = route
-
 	if s.reloadFunc != nil {
 		if err := s.reloadFunc(); err != nil {
 			slog.Error("error reloading router")
@@ -58,7 +59,7 @@ func (s *Store) addRoute(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-type addRedirectModel struct {
+type addRedirectModel []struct {
 	Path     string `json:"path"`
 	Redirect string `json:"redirect"`
 	Type     string `json:"type"`
@@ -82,24 +83,26 @@ func (s *Store) addRedirect(w http.ResponseWriter, req *http.Request) {
 
 	// TODO VALIDATE INPUTS!!!!
 
-	var status int
-	switch payload.Type {
-	case "perm":
-		status = http.StatusPermanentRedirect
-	case "temp":
-		status = http.StatusTemporaryRedirect
-	default:
-		status = http.StatusTemporaryRedirect
-	}
+	for _, item := range payload {
+		var status int
+		switch item.Type {
+		case "perm":
+			status = http.StatusPermanentRedirect
+		case "temp":
+			status = http.StatusTemporaryRedirect
+		default:
+			status = http.StatusTemporaryRedirect
+		}
 
-	slog.Info("adding redirect", "path", payload.Path, "redirect", payload.Redirect, "type", payload.Type, "status", status)
-	redirect := routing.Redirect{
-		Path:     payload.Path,
-		Redirect: payload.Redirect,
-		Status:   status,
-	}
+		slog.Info("adding redirect", "path", item.Path, "redirect", item.Redirect, "type", item.Type, "status", status)
+		redirect := routing.Redirect{
+			Path:     item.Path,
+			Redirect: item.Redirect,
+			Status:   status,
+		}
 
-	s.redirects[payload.Path] = redirect
+		s.redirects[item.Path] = redirect
+	}
 
 	if s.reloadFunc != nil {
 		if err := s.reloadFunc(); err != nil {

@@ -2,8 +2,11 @@ package service_test
 
 import (
 	"fmt"
+	"io"
+	"log/slog"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -13,12 +16,33 @@ import (
 	"github.com/ONSdigital/dis-routing-go-poc/service"
 )
 
+const (
+	numRequestsMultiple = 100
+	delayMultiple       = 100
+
+	numRequestsStaggered = 1000
+	delayStaggered       = 10
+
+	numConfigRedirects = 100
+)
+
+// TestMain runs before any tests and applies globally for all tests in the package.
+func TestMain(m *testing.M) {
+	slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
+
+	exitVal := m.Run()
+	os.Exit(exitVal)
+}
+
 func TestService_Run(t *testing.T) {
 	svc, err := startServiceInstance()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer svc.Shutdown()
+
+	// Wait a little bit of time for server to finish starting up
+	time.Sleep(time.Millisecond * 100)
 
 	// Add some routes and redirects
 	err = addRedirect(svc.AdminPort, "/redir1", "http://localhost/redirected1")
@@ -71,6 +95,9 @@ func TestService_Run_Reroute(t *testing.T) {
 	}
 	defer svc.Shutdown()
 
+	// Wait a little bit of time for server to finish starting up
+	time.Sleep(time.Millisecond * 100)
+
 	// Add some route and redirects
 	err = addRoute(svc.AdminPort, "/route1", fmt.Sprintf("http://localhost:%d", svc.UpstreamPort))
 	if err != nil {
@@ -79,28 +106,25 @@ func TestService_Run_Reroute(t *testing.T) {
 
 	nrClient := getRouterClient(svc.RouterPort)
 
-	const numRequests = 100
-	const delay = 100
-
 	t.Run("multiple_redirects", func(t *testing.T) {
 
 		// Fire off some requests with a delay
-		preresults := make([]*result, numRequests)
+		preresults := make([]*result, numRequestsMultiple)
 		prewg := &sync.WaitGroup{}
-		for i := 0; i < numRequests; i++ {
+		for i := 0; i < numRequestsMultiple; i++ {
 			prewg.Add(1)
 			go func() {
 				defer prewg.Done()
-				r, err := nrClient.Send("/route1", &sendOptions{UpstreamDelay: delay})
+				r, err := nrClient.Send("/route1", &sendOptions{UpstreamDelay: delayMultiple})
 				if err != nil {
-					t.Errorf("expected no error, got %v", err)
+					t.Errorf("expected no error, got %v, instance %d", err, i)
 				}
 				preresults[i] = r
 			}()
 		}
 
 		// Sleep until half way through sleep time of pre requests
-		time.Sleep((delay / 2) * time.Millisecond)
+		time.Sleep((delayMultiple / 2) * time.Millisecond)
 
 		// Add another route
 		err = addRoute(svc.AdminPort, "/route2", fmt.Sprintf("http://localhost:%d", svc.UpstreamPort))
@@ -109,13 +133,13 @@ func TestService_Run_Reroute(t *testing.T) {
 		}
 
 		// Fire off some more requests with a delay
-		postresults := make([]*result, numRequests)
+		postresults := make([]*result, numRequestsMultiple)
 		postwg := &sync.WaitGroup{}
-		for i := 0; i < numRequests; i++ {
+		for i := 0; i < numRequestsMultiple; i++ {
 			postwg.Add(1)
 			go func() {
 				defer postwg.Done()
-				r, err := nrClient.Send("/route1", &sendOptions{UpstreamDelay: delay})
+				r, err := nrClient.Send("/route1", &sendOptions{UpstreamDelay: delayMultiple})
 				if err != nil {
 					t.Errorf("expected no error, got %v", err)
 				}
@@ -127,7 +151,7 @@ func TestService_Run_Reroute(t *testing.T) {
 
 		// Test pre requests
 		prewg.Wait()
-		for i := 0; i < numRequests; i++ {
+		for i := 0; i < numRequestsMultiple; i++ {
 			r := preresults[i]
 			if r == nil {
 				t.Errorf("expected a valid r, index %d", i)
@@ -146,7 +170,7 @@ func TestService_Run_Reroute(t *testing.T) {
 
 		// Test post-results
 		postwg.Wait()
-		for i := 0; i < numRequests; i++ {
+		for i := 0; i < numRequestsMultiple; i++ {
 			r := postresults[i]
 			if r == nil {
 				t.Errorf("expected a valid result, index %d", i)
@@ -173,6 +197,9 @@ func TestService_Run_Reroute_Staggered(t *testing.T) {
 	}
 	defer svc.Shutdown()
 
+	// Wait a little bit of time for server to finish starting up
+	time.Sleep(time.Millisecond * 100)
+
 	// Add some route and redirects
 	err = addRoute(svc.AdminPort, "/route1", fmt.Sprintf("http://localhost:%d", svc.UpstreamPort))
 	if err != nil {
@@ -181,34 +208,31 @@ func TestService_Run_Reroute_Staggered(t *testing.T) {
 
 	nrClient := getRouterClient(svc.RouterPort)
 
-	const numRequests = 100
-	const delay = 10
-
 	t.Run("multiple redirects with staggered start", func(t *testing.T) {
 
 		// Fire off some requests with a delay
-		results := make([]*result, numRequests)
+		results := make([]*result, numRequestsStaggered)
 		wg := &sync.WaitGroup{}
 
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for i := 0; i < numRequests; i++ {
+			for i := 0; i < numRequestsStaggered; i++ {
 				wg.Add(1)
 				go func() {
 					defer wg.Done()
-					r, err := nrClient.Send("/route1", &sendOptions{RouterPreDelay: delay})
+					r, err := nrClient.Send("/route1", &sendOptions{RouterPreDelay: delayStaggered})
 					if err != nil {
 						t.Errorf("expected no error, got %v", err)
 					}
 					results[i] = r
 				}()
-				time.Sleep(delay * time.Millisecond)
+				time.Sleep(delayStaggered * time.Millisecond)
 			}
 		}()
 
 		// Sleep until halfway through sleep time of  requests
-		time.Sleep((delay * numRequests / 2) * time.Millisecond)
+		time.Sleep((delayStaggered * numRequestsStaggered / 2) * time.Millisecond)
 
 		// Add another route
 		err = addRoute(svc.AdminPort, "/route2", fmt.Sprintf("http://localhost:%d", svc.UpstreamPort))
@@ -220,7 +244,7 @@ func TestService_Run_Reroute_Staggered(t *testing.T) {
 		wg.Wait()
 
 		routervVersions := make(map[string]int)
-		for i := 0; i < numRequests; i++ {
+		for i := 0; i < numRequestsStaggered; i++ {
 			r := results[i]
 			if r == nil {
 				t.Errorf("expected a valid r, index %d", i)
@@ -239,10 +263,70 @@ func TestService_Run_Reroute_Staggered(t *testing.T) {
 			if v < 2 || v > 3 {
 				t.Errorf("expected router version 1 or 2, got %v", v)
 			}
-			if count < 40 || count > 60 {
-				t.Errorf("expected between 40 and 60 for version %s, got %v", version, count)
+			if count < 0.4*numRequestsStaggered || count > 0.6*numRequestsStaggered {
+				t.Errorf("expected between 40%% and 60%% for version %s, got %v", version, count)
 			}
 		}
+	})
+}
+
+func TestService_RunBigConfig(t *testing.T) {
+	svc, err := startServiceInstance()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer svc.Shutdown()
+
+	// Wait a little bit of time for server to finish starting up
+	time.Sleep(time.Millisecond * 100)
+
+	// Add some routes and redirects
+	err = addRedirect(svc.AdminPort, "/redir1", "http://localhost/redirected1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = addRoute(svc.AdminPort, "/route1", fmt.Sprintf("http://localhost:%d", svc.UpstreamPort))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	nrClient := getRouterClient(svc.RouterPort)
+
+	redirs := make(map[string]string)
+
+	t.Run("add lots of redirects", func(t *testing.T) {
+		fmt.Printf("BigConfig num requests = %d\n", numConfigRedirects)
+
+		for i := 0; i < numConfigRedirects; i++ {
+			path := fmt.Sprintf("/redir%d", i)
+			dest := fmt.Sprintf("http://localhost/redirected%d", i)
+			redirs[path] = dest
+			err = addRedirect(svc.AdminPort, path, dest)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		fmt.Printf("BigConfig added requests = %d\n", numConfigRedirects)
+
+		start := time.Now()
+		for path, dest := range redirs {
+			result, err := nrClient.Send(path, nil)
+			if err != nil {
+				t.Errorf("expected no error, got %v", err)
+			}
+
+			if result.Status != http.StatusTemporaryRedirect {
+				t.Errorf("expected status code %v, got %v", http.StatusTemporaryRedirect, result.Status)
+			}
+
+			if result.Location != dest {
+				t.Errorf("expected Location header \"%s\", got %v", dest, result.Location)
+			}
+		}
+
+		end := time.Now()
+		fmt.Printf("BigConfig duration for %d reqs = %d ms\n", numConfigRedirects, end.Sub(start).Milliseconds())
 	})
 
 }
@@ -339,7 +423,7 @@ func (c *httpClient) Send(path string, opts *sendOptions) (*result, error) {
 }
 
 func addRedirect(port int, path, dest string) error {
-	payload := fmt.Sprintf(`{"path":"%s","redirect":"%s","type":"temp"}`, path, dest)
+	payload := fmt.Sprintf(`[{"path":"%s","redirect":"%s","type":"temp"}]`, path, dest)
 	resp, err := http.Post(fmt.Sprintf("http://localhost:%d/redirects", port), `application/json`, strings.NewReader(payload))
 	if err != nil {
 		return err
@@ -351,7 +435,7 @@ func addRedirect(port int, path, dest string) error {
 }
 
 func addRoute(port int, path, host string) error {
-	payload := fmt.Sprintf(`{"path":"%s","host":"%s"}`, path, host)
+	payload := fmt.Sprintf(`[{"path":"%s","host":"%s"}]`, path, host)
 	resp, err := http.Post(fmt.Sprintf("http://localhost:%d/routes", port), `application/json`, strings.NewReader(payload))
 	if err != nil {
 		return err

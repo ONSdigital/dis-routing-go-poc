@@ -85,8 +85,11 @@ func (r *Router) Reload() error {
 	slog.Debug("routes got from storage", "routes", routes)
 
 	mux := r.newHandler(redirects, routes)
+
+	// TODO it might be worth wrapping these with a mutex to avoid issues with any in-flight requests.
 	r.version++
 	r.handler = mux
+
 	slog.Info("finished reloading router", "version", strconv.Itoa(r.version))
 	return nil
 }
