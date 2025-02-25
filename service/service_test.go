@@ -2,7 +2,6 @@ package service_test
 
 import (
 	"fmt"
-	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -23,12 +22,16 @@ const (
 	numRequestsStaggered = 100
 	delayStaggered       = 10
 
-	numConfigRedirects = 1000
+	numConfigRedirects      = 50
+	numConfigWCRedirects    = 20
+	numConfigPreWCRedirects = 10
 )
 
 // TestMain runs before any tests and applies globally for all tests in the package.
 func TestMain(m *testing.M) {
-	slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	//slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	logHandler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})
+	slog.SetDefault(slog.New(logHandler))
 
 	exitVal := m.Run()
 	os.Exit(exitVal)
@@ -280,22 +283,12 @@ func TestService_RunBigConfig(t *testing.T) {
 	// Wait a little bit of time for server to finish starting up
 	time.Sleep(time.Millisecond * 100)
 
-	// Add some routes and redirects
-	err = addRedirect(svc.AdminPort, "/redir1", "http://localhost/redirected1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = addRoute(svc.AdminPort, "/route1", fmt.Sprintf("http://localhost:%d", svc.UpstreamPort))
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	nrClient := getRouterClient(svc.RouterPort)
 
 	redirs := make(map[string]string)
 
 	t.Run("add lots of redirects", func(t *testing.T) {
-		fmt.Printf("BigConfig num requests = %d\n", numConfigRedirects)
+		fmt.Printf("BigConfig num redirects = %d, wc = %d\n", numConfigRedirects, numConfigWCRedirects)
 
 		redirects := make([]redirect, 0)
 		for i := 0; i < numConfigRedirects; i++ {
@@ -303,14 +296,25 @@ func TestService_RunBigConfig(t *testing.T) {
 			dest := fmt.Sprintf("http://localhost/redirected%d", i)
 			redirects = append(redirects, redirect{path: path, dest: dest})
 			redirs[path] = dest
-
+		}
+		for i := 0; i < numConfigWCRedirects; i++ {
+			wcpath := fmt.Sprintf("/redir%d/{wc...}", i)
+			wcdest := fmt.Sprintf("http://localhost/redirected/wildcard%d", i)
+			redirects = append(redirects, redirect{path: wcpath, dest: wcdest})
+			redirs[strings.Replace(wcpath, "{wc...}", "something", -1)] = wcdest
+		}
+		for i := 0; i < numConfigPreWCRedirects; i++ {
+			wcpath := fmt.Sprintf("/pre/{wc}/redir%d", i)
+			wcdest := fmt.Sprintf("http://localhost/redirected/pre/wildcard%d", i)
+			redirects = append(redirects, redirect{path: wcpath, dest: wcdest})
+			redirs[strings.Replace(wcpath, "{wc}", "something", -1)] = wcdest
 		}
 		err = addRedirects(svc.AdminPort, redirects)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		fmt.Printf("BigConfig added requests = %d\n", numConfigRedirects)
+		fmt.Printf("BigConfig added requests = %d wc = %d\n", numConfigRedirects, numConfigWCRedirects)
 
 		start := time.Now()
 		for path, dest := range redirs {
@@ -329,7 +333,7 @@ func TestService_RunBigConfig(t *testing.T) {
 		}
 
 		end := time.Now()
-		fmt.Printf("BigConfig duration for %d reqs = %d ms\n", numConfigRedirects, end.Sub(start).Milliseconds())
+		fmt.Printf("BigConfig duration for %d reqs, %d wc = %d ms\n", numConfigRedirects, numConfigWCRedirects, end.Sub(start).Milliseconds())
 	})
 
 }

@@ -40,7 +40,7 @@ func (s *Store) addRoute(w http.ResponseWriter, req *http.Request) {
 	// TODO VALIDATE INPUTS!!!!
 
 	for _, item := range payload {
-		slog.Info("adding route", "path", item.Path, "host", item.Host)
+		slog.Debug("adding route", "path", item.Path, "host", item.Host)
 		route := routing.Route{
 			Path: item.Path,
 			Host: item.Host,
@@ -94,7 +94,7 @@ func (s *Store) addRedirect(w http.ResponseWriter, req *http.Request) {
 			status = http.StatusTemporaryRedirect
 		}
 
-		slog.Info("adding redirect", "path", item.Path, "redirect", item.Redirect, "type", item.Type, "status", status)
+		slog.Debug("adding redirect", "path", item.Path, "redirect", item.Redirect, "type", item.Type, "status", status)
 		redirect := routing.Redirect{
 			Path:     item.Path,
 			Redirect: item.Redirect,

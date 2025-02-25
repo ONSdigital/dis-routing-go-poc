@@ -22,5 +22,5 @@ func NewRedirectHandler(destination string, statusCode int) *RedirectHandler {
 func (r *RedirectHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Location", r.Destination)
 	w.WriteHeader(r.StatusCode)
-	slog.Info("redirecting request", "from", req.URL.Path, "to", r.Destination)
+	slog.Debug("redirecting request", "from", req.URL.Path, "to", r.Destination)
 }

@@ -15,7 +15,7 @@ func Handler() http.Handler {
 
 func HandleAny(w http.ResponseWriter, req *http.Request) {
 	delay := req.Header.Get("x-upstream-delay")
-	slog.Info("handling upstream request",
+	slog.Debug("handling upstream request",
 		"path", req.URL.Path,
 		"delay", delay,
 	)

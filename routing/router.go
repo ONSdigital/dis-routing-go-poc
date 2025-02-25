@@ -47,7 +47,7 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	// POC-ONLY
 	preDelay := req.Header.Get("x-router-pre-delay")
 	postDelay := req.Header.Get("x-router-post-delay")
-	slog.Info("handling router request",
+	slog.Debug("handling router request",
 		"path", req.URL.Path,
 	)
 	if preDelay != "" {
