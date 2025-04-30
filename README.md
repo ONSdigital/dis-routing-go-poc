@@ -1,5 +1,11 @@
 # dis-routing-go-poc
 
+---
+
+:warning: This repository was archived in May 2025 and is no longer in development. :warning:
+
+---
+
 Proof of Concept for dynamically loadable routing and redirects in Go
 
 ## Getting started
